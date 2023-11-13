@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/er2-disk-erase.iml" filepath="$PROJECT_DIR$/er2-disk-erase.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/er2-datamop.iml" filepath="$PROJECT_DIR$/.idea/er2-datamop.iml" />
     </modules>
   </component>
 </project>
