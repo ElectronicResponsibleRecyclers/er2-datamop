@@ -17,9 +17,9 @@ portal_upload () {
   #Submit asset info to portal
   echo "Submitting asset info to the portal..."
   if [[ -z "$jobNumber" ]]; then
-    request=$(curl -s -X POST https://feature-pa-4383-endpoint-for-submitting-assets.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info}")
+    request=$(curl -s -X POST https://feature-pa-4383-endpoint-for-submitting-assets.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
   else
-    request=$(curl -s -X POST https://feature-pa-4383-endpoint-for-submitting-assets.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"job_number\": \"$jobNumber\", \"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info}")
+    request=$(curl -s -X POST https://feature-pa-4383-endpoint-for-submitting-assets.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"job_number\": \"$jobNumber\", \"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
   fi
 
   #check for errors
@@ -70,6 +70,9 @@ read -p "Enter Asset Tag: " assetTag
 
 #Get lshw json report of device information
 lshw_info=$(lshw -json -quiet)
+
+#Get battery info via upower dump
+upower_info=$(upower --dump | jc --upower)
 
 # Get a list of connected drives
 drives=$(lsblk -d -o NAME,TRAN | grep 'sata\|nvme' | awk '{print $1}')
