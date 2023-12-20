@@ -113,7 +113,7 @@ for drive in $drives; do
     if hdparm -I /dev/$drive | grep -q "supported: enhanced erase"; then
       echo "Secure erase is supported for /dev/$drive."
       echo "Performing secure erase on /dev/$drive..."
-      hdparm --security-set-wipe_passed p /dev/$drive
+      hdparm --security-set-pass p /dev/$drive
       hdparm --security-erase-enhanced p /dev/$drive
       echo "Secure erase complete for /dev/$drive."
     else
@@ -126,12 +126,6 @@ for drive in $drives; do
     wipe_passed=false
     break
   fi
-  #check if drive is zeroed
-  # TODO Currently broken. Must check 10% of drive for zeros from random sectors.
-#  if dd if=/dev/$drive bs=2M count=100 status=none | hexdump | head -n 1 | grep -q '\[^0 '; then
-#    wipe_passed=false
-#    break
-#  fi
 done
 wipe_method="Secure Erase"
 if [ $wipe_passed = false ]; then
