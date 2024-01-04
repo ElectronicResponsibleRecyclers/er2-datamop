@@ -87,26 +87,12 @@ for drive in $drives; do
       if nvme id-ctrl /dev/$drive -H | grep -q "Crypto Erase Supported"; then
         echo "NVMe Crypto erase is supported for /dev/$drive."
         echo "Performing NVMe crypto erase on /dev/$drive..."
-        output=$(nvme format /dev/$drive --ses=2 --force)
-        if echo $output | grep -q "Success"; then
-          echo "NVMe crypto erase complete for /dev/$drive."
-        else
-          echo "Wipe Failed!"
-          wipe_passed=false
-          break
-        fi
+        nvme format /dev/$drive --ses=2 --force
       # Do Secure Erase if Crypto erase not supported
       else
         echo "NVMe Secure erase is supported for /dev/$drive."
         echo "Performing NVMe Secure erase on /dev/$drive..."
-        output=$(nvme format /dev/$drive --ses=1 --force)
-        if echo $output | grep -q  "Success"; then
-          echo "NVMe secure erase complete for /dev/$drive."
-        else
-          echo "Wipe Failed!"
-          wipe_passed=false
-          break
-        fi
+        nvme format /dev/$drive --ses=1 --force
       fi
   # If ATA drive then wipe with ATA secure erase
   elif [[ "$drive" == "sd"* ]]; then
@@ -117,19 +103,32 @@ for drive in $drives; do
       hdparm --security-erase-enhanced p /dev/$drive
       echo "Secure erase complete for /dev/$drive."
     else
-      echo "Secure erase not supported for /dev/$drive"
+      echo -e "${red}Secure erase not supported for /dev/$drive"
       wipe_passed=false
       break
     fi
   else
-    echo "Secure erase is not supported for /dev/$drive"
+    echo -e "${red}Secure erase is not supported for /dev/$drive"
     wipe_passed=false
     break
   fi
+  #check if drive is zeroed by scanning 10% of the drive for non-zeros
+  echo "Verifying drive /dev/$drive is fully wiped..."
+  total_bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
+  ten_percent_mbs=$(($total_bytes / 10000000))
+  if dd if=/dev/$drive bs=1M count=$ten_percent_mbs status=none | pv -s $(echo $ten_percent_mbs)M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
+    echo -e "${red}Wipe Verification Failed!${clear}"
+    wipe_passed=false
+    break
+  else
+    echo -e "${green}Wipe Verification Passed!${clear}"
+  fi
 done
-wipe_method="Secure Erase"
+#Set wipe Method
 if [ $wipe_passed = false ]; then
   wipe_method="Destroyed"
+else
+  wipe_method="Secure Erase"
 fi
 
 intune_locked=false
