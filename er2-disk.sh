@@ -57,7 +57,7 @@ portal_upload () {
   fi
 }
 
-rtcwake -m mem -s 3
+rtcwake -m mem -s 3 >> /dev/null
 
 #Optionally enter job number
 read -p "(Optional) Enter Job Number: " jobNumber
@@ -99,8 +99,8 @@ for drive in $drives; do
     if hdparm -I /dev/$drive | grep -q "supported: enhanced erase"; then
       echo "Secure erase is supported for /dev/$drive."
       echo "Performing secure erase on /dev/$drive..."
-      hdparm --security-set-pass p /dev/$drive
-      hdparm --security-erase-enhanced p /dev/$drive
+      hdparm --security-set-pass p /dev/$drive >> /dev/null
+      hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
       echo "Secure erase complete for /dev/$drive."
     else
       echo -e "${red}Secure erase not supported for /dev/$drive"
