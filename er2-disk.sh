@@ -96,12 +96,22 @@ for drive in $drives; do
       fi
   # If ATA drive then wipe with ATA secure erase
   elif [[ "$drive" == "sd"* ]]; then
-    if hdparm -I /dev/$drive | grep -q "supported: enhanced erase"; then
-      echo "Secure erase is supported for /dev/$drive."
-      echo "Performing secure erase on /dev/$drive..."
-      hdparm --security-set-pass p /dev/$drive >> /dev/null
-      hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
-      echo "Secure erase complete for /dev/$drive."
+    if hdparm -I /dev/$drive | grep -q "min for SECURITY"; then
+      security_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for SECURITY")
+      enhanced_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for ENHANCED")
+      if [[ $(echo $enhanced_time | grep -o -P "\d+") -le $(echo $security_time | grep -o -P "\d+") ]]; then
+        echo "Enhanced Secure erase is supported for /dev/$drive."
+        echo "Performing enhanced secure erase on /dev/$drive..."
+        hdparm --security-set-pass p /dev/$drive >> /dev/null
+        hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
+        echo "Enhanced Secure erase complete for /dev/$drive."
+      else
+        echo "Secure erase is supported for /dev/$drive."
+        echo "Performing secure erase on /dev/$drive..."
+        hdparm --security-set-pass p /dev/$drive >> /dev/null
+        hdparm --security-erase p /dev/$drive >> /dev/null
+        echo "Secure erase complete for /dev/$drive."
+      fi
     else
       echo -e "${red}Secure erase not supported for /dev/$drive"
       wipe_passed=false
