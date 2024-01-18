@@ -78,62 +78,73 @@ upower_info=$(upower --dump | jc --upower)
 drives=$(lsblk -d -o NAME,TRAN | grep 'sata\|nvme' | awk '{print $1}')
 
 wipe_passed=true
-# Loop through each drive and check if it supports ATA secure erase
-for drive in $drives; do
-  echo "attempting to wipe /dev/$drive..."
-  # Check if drive is nvme
-  if [[ "$drive" == "nvme"* ]]; then
-      # Check if crypto erase is supported
-      if nvme id-ctrl /dev/$drive -H | grep -q "Crypto Erase Supported"; then
-        echo "NVMe Crypto erase is supported for /dev/$drive."
-        echo "Performing NVMe crypto erase on /dev/$drive..."
-        nvme format /dev/$drive --ses=2 --force
-      # Do Secure Erase if Crypto erase not supported
+if [[ -z "$drives" ]]; then
+  echo -e "${yellow}Warning! This script is unable to detect any drives inside this asset. Please check whether or not the asset contains any drives."
+  echo "If the asset does contain drives please shutdown the asset, ensure that all drives are connected properly and power on the asset."
+  echo -e "${red}If this is the second time this warning has popped up and there are drives in the asset, run the script until completion, remove all drives from the asset and mark them for destruction.${yellow}"
+  echo -e "If the asset does not contain drives then do not shut the asset down and continue running the script to upload the asset's information to the portal.${clear}"
+  read -p "Would you like to shutdown the device? (y/N)"
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    systemctl poweroff
+  fi
+else
+  # Loop through each drive and check if it supports ATA secure erase
+  for drive in $drives; do
+    echo "attempting to wipe /dev/$drive..."
+    # Check if drive is nvme
+    if [[ "$drive" == "nvme"* ]]; then
+        # Check if crypto erase is supported
+        if nvme id-ctrl /dev/$drive -H | grep -q "Crypto Erase Supported"; then
+          echo "NVMe Crypto erase is supported for /dev/$drive."
+          echo "Performing NVMe crypto erase on /dev/$drive..."
+          nvme format /dev/$drive --ses=2 --force
+        # Do Secure Erase if Crypto erase not supported
+        else
+          echo "NVMe Secure erase is supported for /dev/$drive."
+          echo "Performing NVMe Secure erase on /dev/$drive..."
+          nvme format /dev/$drive --ses=1 --force
+        fi
+    # If ATA drive then wipe with ATA secure erase
+    elif [[ "$drive" == "sd"* ]]; then
+      if hdparm -I /dev/$drive | grep -q "min for SECURITY"; then
+        security_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for SECURITY")
+        enhanced_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for ENHANCED")
+        if [[ $(echo $enhanced_time | grep -o -P "\d+") -le $(echo $security_time | grep -o -P "\d+") ]]; then
+          echo "Enhanced Secure erase is supported for /dev/$drive."
+          echo "Performing enhanced secure erase on /dev/$drive..."
+          hdparm --security-set-pass p /dev/$drive >> /dev/null
+          hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
+          echo "Enhanced Secure erase complete for /dev/$drive."
+        else
+          echo "Secure erase is supported for /dev/$drive."
+          echo "Performing secure erase on /dev/$drive..."
+          hdparm --security-set-pass p /dev/$drive >> /dev/null
+          hdparm --security-erase p /dev/$drive >> /dev/null
+          echo "Secure erase complete for /dev/$drive."
+        fi
       else
-        echo "NVMe Secure erase is supported for /dev/$drive."
-        echo "Performing NVMe Secure erase on /dev/$drive..."
-        nvme format /dev/$drive --ses=1 --force
-      fi
-  # If ATA drive then wipe with ATA secure erase
-  elif [[ "$drive" == "sd"* ]]; then
-    if hdparm -I /dev/$drive | grep -q "min for SECURITY"; then
-      security_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for SECURITY")
-      enhanced_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for ENHANCED")
-      if [[ $(echo $enhanced_time | grep -o -P "\d+") -le $(echo $security_time | grep -o -P "\d+") ]]; then
-        echo "Enhanced Secure erase is supported for /dev/$drive."
-        echo "Performing enhanced secure erase on /dev/$drive..."
-        hdparm --security-set-pass p /dev/$drive >> /dev/null
-        hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
-        echo "Enhanced Secure erase complete for /dev/$drive."
-      else
-        echo "Secure erase is supported for /dev/$drive."
-        echo "Performing secure erase on /dev/$drive..."
-        hdparm --security-set-pass p /dev/$drive >> /dev/null
-        hdparm --security-erase p /dev/$drive >> /dev/null
-        echo "Secure erase complete for /dev/$drive."
+        echo -e "${red}Secure erase not supported for /dev/$drive"
+        wipe_passed=false
+        break
       fi
     else
-      echo -e "${red}Secure erase not supported for /dev/$drive"
+      echo -e "${red}Secure erase is not supported for /dev/$drive"
       wipe_passed=false
       break
     fi
-  else
-    echo -e "${red}Secure erase is not supported for /dev/$drive"
-    wipe_passed=false
-    break
-  fi
-  #check if drive is zeroed by scanning 10% of the drive for non-zeros
-  echo "Verifying drive /dev/$drive is fully wiped..."
-  total_bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
-  ten_percent_mbs=$(($total_bytes / 10000000))
-  if dd if=/dev/$drive bs=1M count=$ten_percent_mbs status=none | pv -s $(echo $ten_percent_mbs)M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
-    echo -e "${red}Wipe Verification Failed!${clear}"
-    wipe_passed=false
-    break
-  else
-    echo -e "${green}Wipe Verification Passed!${clear}"
-  fi
-done
+    #check if drive is zeroed by scanning 10% of the drive for non-zeros
+    echo "Verifying drive /dev/$drive is fully wiped..."
+    total_bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
+    ten_percent_mbs=$(($total_bytes / 10000000))
+    if dd if=/dev/$drive bs=1M count=$ten_percent_mbs status=none | pv -s $(echo $ten_percent_mbs)M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
+      echo -e "${red}Wipe Verification Failed!${clear}"
+      wipe_passed=false
+      break
+    else
+      echo -e "${green}Wipe Verification Passed!${clear}"
+    fi
+  done
+fi
 #Set wipe Method
 if [ $wipe_passed = false ]; then
   wipe_method="Destroyed"
