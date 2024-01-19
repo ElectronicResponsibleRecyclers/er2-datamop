@@ -1,9 +1,24 @@
 #!/bin/bash
 
+clear
+
 #Check if root
 if [ "$EUID" -ne 0 ]; then
   echo "Please run this script as root (sudo)."
   exit 1
+fi
+
+#Check for internet connection
+wget -q --spider http://google.com
+if [ $? -ne 0 ]; then
+  echo "Waiting for internet connection..."
+  while : ; do
+    wget -q --spider http://google.com
+
+    if [ $? -eq 0 ]; then
+      break
+    fi
+  done
 fi
 
 #Set color variables for echo output
