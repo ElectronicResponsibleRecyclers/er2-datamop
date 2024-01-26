@@ -108,17 +108,8 @@ else
     echo "attempting to wipe /dev/$drive..."
     # Check if drive is nvme
     if [[ "$drive" == "nvme"* ]]; then
-        # Check if crypto erase is supported
-        if nvme id-ctrl /dev/$drive -H | grep -q "Crypto Erase Supported"; then
-          echo "NVMe Crypto erase is supported for /dev/$drive."
-          echo "Performing NVMe crypto erase on /dev/$drive..."
-          nvme format /dev/$drive --ses=2 --force
-        # Do Secure Erase if Crypto erase not supported
-        else
-          echo "NVMe Secure erase is supported for /dev/$drive."
-          echo "Performing NVMe Secure erase on /dev/$drive..."
-          nvme format /dev/$drive --ses=1 --force
-        fi
+      echo "Performing NVMe Secure erase on /dev/$drive..."
+      nvme format /dev/$drive --ses=1 --force
     # If ATA drive then wipe with ATA secure erase
     elif [[ "$drive" == "sd"* ]]; then
       if hdparm -I /dev/$drive | grep -q "min for SECURITY"; then
