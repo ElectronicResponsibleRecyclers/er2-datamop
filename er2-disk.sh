@@ -56,14 +56,6 @@ portal_upload () {
       elif [[ error_code -eq 3 ]]; then
         echo -e "${yellow}Serial Number already exists in portal! Device may have already been inventoried${clear}"
         read -p "Press [Enter] to continue" none
-      elif [[ error_code -eq 4 ]]; then
-        echo -e "${yellow}Job not found! Please input the job number${clear}"
-        read -p "Enter Job Number: " jobNumber
-        portal_upload
-      elif [[ error_code -eq 5 ]]; then
-        echo -e "${yellow}ER2 Asset Tag not found! Please reenter the ER2 Asset Tag${clear}"
-        read -p "Enter ER2 Asset Tag: " er2AssetTag
-        portal_upload
       else
         echo -e "${red}Unknown error occurred. Error Code: ( $error_code ).${clear}"
         read -p "Press [Enter] key to continue..." none
@@ -71,6 +63,8 @@ portal_upload () {
     fi
   fi
 }
+
+echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
 
 rtcwake -m mem -s 3 >> /dev/null
 
