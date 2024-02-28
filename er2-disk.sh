@@ -8,6 +8,17 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+if dmidecode -s system-manufacturer | grep -qi "dell"; then
+  mode=$(cctk --EmbSataRaid)
+  if [[ "$mode" == "EmbSataRaid=Raid" ]]; then
+      cctk --EmbSataRaid=Ahci >> /dev/null
+      echo "Reboot required for script to continue! Restarting in 3 seconds..."
+      sleep 3
+      systemctl reboot
+      exit
+  fi
+fi
+
 #Check for internet connection
 wget -q --spider http://google.com
 if [ $? -ne 0 ]; then
