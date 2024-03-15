@@ -54,19 +54,23 @@ portal_upload () {
       intune_locked=true
     fi
   else
-    if [[ $(echo $request | jq -r ".error") ]]; then
+    if [[ $(echo $request | jq -r ".status") == "error" ]]; then
       error_code=$(echo $request | jq -r ".error_code")
-      if [[ error_code -eq 1 ]]; then
-        echo -e "${yellow}Access to portal upload denied. Please ensure this you are running this while connected to the ER2 network${clear}"
-        read -p "Connect to the ER2 network and press [Enter] to try again" none
+      error_message=$(echo $request | jq -r ".error")
+      if [[ error_code -eq 4 ]]; then
+        echo -e "${red}$error_message Please re-input asset data.${clear}"
+        read -p "Re-Enter Job Number: " jobNumber
         portal_upload
-      elif [[ error_code -eq 2 ]]; then
-        echo -e "${yellow}Failed to verify intune status!${clear}"
-        read -p "Press [Enter] to try again" none
+      elif [[ error_code -eq 5 ]]; then
+        echo -e "${red}$error_message Please re-input asset data.${clear}"
+        read -p "(Optional) Re-Enter Job Number: " jobNumber
+        read -p "Re-Enter ER2 Asset Tag: " er2AssetTag
         portal_upload
-      elif [[ error_code -eq 3 ]]; then
-        echo -e "${yellow}Serial Number already exists in portal! Device may have already been inventoried${clear}"
-        read -p "Press [Enter] to continue" none
+      elif [[ error_code -eq 6 ]]; then
+        echo -e "${red}$error_message Please re-input asset data.${clear}"
+        read -p "(Optional) Re-Enter Job Number: " jobNumber
+        read -p "Re-Enter ER2 Asset Tag: " er2AssetTag
+        portal_upload
       else
         echo -e "${red}Unknown error occurred. Error Code: ( $error_code ).${clear}"
         read -p "Press [Enter] key to continue..." none
