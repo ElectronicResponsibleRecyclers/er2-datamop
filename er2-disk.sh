@@ -170,6 +170,8 @@ fi
 intune_locked=false
 portal_upload
 
+echo $request
+
 if [ $intune_locked = true ]; then
   echo -e "${yellow}Device is Intune locked!!! Please place Intune sticker on device!!!${clear}"
   read -p "Press [Enter] key to continue..." none
