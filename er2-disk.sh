@@ -100,7 +100,7 @@ portal_upload () {
 echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
 
 rtcwake -m mem -s 3 >> /dev/null
-
+sleep 10
 check_internet
 
 #Optionally enter job number
