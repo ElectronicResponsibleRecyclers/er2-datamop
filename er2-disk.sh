@@ -19,19 +19,6 @@ if dmidecode -s system-manufacturer | grep -qi "dell"; then
   fi
 fi
 
-#Check for internet connection
-wget -q --spider http://google.com
-if [ $? -ne 0 ]; then
-  echo "Waiting for internet connection..."
-  while : ; do
-    wget -q --spider http://google.com
-
-    if [ $? -eq 0 ]; then
-      break
-    fi
-  done
-fi
-
 #Set color variables for echo output
 red='\033[0;31m'
 green='\033[0;32m'
@@ -82,6 +69,19 @@ portal_upload () {
 echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
 
 rtcwake -m mem -s 3 >> /dev/null
+
+#Check for internet connection
+wget -q --spider http://google.com
+if [ $? -ne 0 ]; then
+  echo "Waiting for internet connection..."
+  while : ; do
+    wget -q --spider http://google.com
+
+    if [ $? -eq 0 ]; then
+      break
+    fi
+  done
+fi
 
 #Optionally enter job number
 read -p "(Optional) Enter Job Number: " jobNumber
