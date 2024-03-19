@@ -25,17 +25,47 @@ green='\033[0;32m'
 yellow='\033[0;33m'
 clear='\033[0m'
 
+#Define internet check function
+check_internet () {
+  #DHCP rebind
+  interfaces=$(ip -o link show | awk -F': ' '{print $2}' | grep en)
+  for i in $interfaces; do
+    dhcpcd -n $i >> /dev/null
+  done
+
+  #Check for internet connection
+  wget -q --spider http://google.com
+  if [ $? -ne 0 ]; then
+    echo "Waiting for internet connection..."
+    while : ; do
+      wget -q --spider http://google.com
+
+      if [ $? -eq 0 ]; then
+        break
+      fi
+    done
+  fi
+}
 #Define portal upload function
 portal_upload () {
   #Submit asset info to portal
   echo "Submitting asset info to the portal..."
   if [[ -z "$jobNumber" ]]; then
-    request=$(curl -s -X POST https://dev.portal.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
+    request=$(curl -sSf -X POST https://dev.portal.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
+    exit_status=$?
   else
-    request=$(curl -s -X POST https://dev.portal.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"job_number\": \"$jobNumber\", \"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
+    request=$(curl -sSf -X POST https://dev.portal.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"job_number\": \"$jobNumber\", \"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
+    exit_status=$?
   fi
 
-  #check for errors
+  #check for cURL errors
+  if [[ $exit_status -ne 0 ]]; then
+     echo -e "${red}Portal Upload failed with exit code: $exit_status. Please ensure the asset has an internet connection${clear}\nRetrying upload now..."
+     check_internet
+     portal_upload
+  fi
+
+  #check for response errors
   if [[ $(echo $request | jq -r ".status") == "success" ]]; then
     if [[ $(echo $request | jq -r ".intune_registration") == "true" ]]; then
       intune_locked=true
@@ -70,18 +100,7 @@ echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
 
 rtcwake -m mem -s 3 >> /dev/null
 
-#Check for internet connection
-wget -q --spider http://google.com
-if [ $? -ne 0 ]; then
-  echo "Waiting for internet connection..."
-  while : ; do
-    wget -q --spider http://google.com
-
-    if [ $? -eq 0 ]; then
-      break
-    fi
-  done
-fi
+check_internet
 
 #Optionally enter job number
 read -p "(Optional) Enter Job Number: " jobNumber
