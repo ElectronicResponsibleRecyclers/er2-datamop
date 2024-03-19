@@ -60,7 +60,8 @@ portal_upload () {
 
   #check for cURL errors
   if [[ $exit_status -ne 0 ]]; then
-     echo -e "${red}Portal Upload failed with exit code: $exit_status. Please ensure the asset has an internet connection${clear}\nRetrying upload now..."
+     echo -e "${red}Portal Upload failed with exit code: $exit_status. Please ensure the asset has an internet connection${clear}"
+     read -p "Press [Enter] key to retry upload..." none
      check_internet
      portal_upload
   fi
