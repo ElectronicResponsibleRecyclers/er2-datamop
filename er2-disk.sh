@@ -30,7 +30,7 @@ check_internet () {
   #DHCP rebind
   interfaces=$(ip -o link show | awk -F': ' '{print $2}' | grep en)
   for i in $interfaces; do
-    dhcpcd -n $i >> /dev/null
+    dhcpcd -n $i
   done
 
   #Check for internet connection
