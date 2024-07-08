@@ -119,7 +119,7 @@ lshw_info=$(lshw -json -quiet)
 upower_info=$(upower --dump | jc --upower)
 
 # Get a list of connected drives
-drives=$(lsblk -d -o NAME,TRAN | grep 'sata\|nvme' | awk '{print $1}')
+drives=$(lsblk -d -o NAME,TYPE,TRAN | grep 'disk.*sata\|nvme' | awk '{print $1}')
 
 wipe_passed=true
 if [[ -z "$drives" ]]; then
