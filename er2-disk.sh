@@ -51,10 +51,10 @@ portal_upload () {
   #Submit asset info to portal
   echo "Submitting asset info to the portal..."
   if [[ -z "$jobNumber" ]]; then
-    request=$(curl -sSf -X POST https://release-24-06.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
+    request=$(curl -sSf -X POST https://dev.portal.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
     exit_status=$?
   else
-    request=$(curl -sSf -X POST https://release-24-06.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"job_number\": \"$jobNumber\", \"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
+    request=$(curl -sSf -X POST https://dev.portal.er2.com/api/asset-inventory -H 'Content-Type: application/json' -d "{\"er2\": {\"job_number\": \"$jobNumber\", \"er2_asset_tag\": \"$er2AssetTag\", \"asset_tag\": \"$assetTag\", \"wipe_method\": \"$wipe_method\"}, \"lshw\": $lshw_info, \"upower\": $upower_info}")
     exit_status=$?
   fi
 
