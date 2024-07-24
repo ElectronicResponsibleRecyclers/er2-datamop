@@ -46,6 +46,20 @@ check_internet () {
     done
   fi
 }
+verify_drive() {
+  #check if drive is zeroed by scanning 10% of the drive for non-zeros
+  echo "Verifying drive /dev/$1 is fully wiped..."
+  total_bytes=$(lsblk -b --output SIZE -n -d /dev/$1)
+  ten_percent_mbs=$(($total_bytes / 10000000))
+  if dd if=/dev/$1 bs=1M count=$ten_percent_mbs status=none | pv -s $(echo $ten_percent_mbs)M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
+    echo -e "${red}Wipe Verification Failed!${clear}"
+    wipe_passed=false
+    break
+  else
+    echo -e "${green}Wipe Verification Passed!${clear}"
+
+  fi
+}
 #Define portal upload function
 portal_upload () {
   #Submit asset info to portal
@@ -134,11 +148,16 @@ if [[ -z "$drives" ]]; then
 else
   # Loop through each drive and check if it supports ATA secure erase
   for drive in $drives; do
+    secure_erase_passed=true
     echo "attempting to wipe /dev/$drive..."
     # Check if drive is nvme
     if [[ "$drive" == "nvme"* ]]; then
       echo "Performing NVMe Secure erase on /dev/$drive..."
       nvme format /dev/$drive --ses=1 --force
+      if [[ $? != 0 ]]; then
+        echo -e "${red}Secure erase is not supported for /dev/$drive${clear}"
+        secure_erase_passed=false
+      fi
     # If ATA drive then wipe with ATA secure erase
     elif [[ "$drive" == "sd"* ]]; then
       if hdparm -I /dev/$drive | grep -q "min for SECURITY"; then
@@ -149,35 +168,39 @@ else
           echo "Performing enhanced secure erase on /dev/$drive..."
           hdparm --security-set-pass p /dev/$drive >> /dev/null
           hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
-          echo "Enhanced Secure erase complete for /dev/$drive."
+          if [[ $? != 0 ]]; then
+            echo -e "${red}Secure erase not supported for /dev/$drive${clear}"
+            secure_erase_passed=false
+          else
+            echo "Enhanced Secure erase complete for /dev/$drive."
+          fi
         else
           echo "Secure erase is supported for /dev/$drive."
           echo "Performing secure erase on /dev/$drive..."
           hdparm --security-set-pass p /dev/$drive >> /dev/null
           hdparm --security-erase p /dev/$drive >> /dev/null
-          echo "Secure erase complete for /dev/$drive."
+          if [[ $? != 0 ]]; then
+            secure_erase_passed=false
+          else
+            echo "Secure erase complete for /dev/$drive."
+          fi
         fi
       else
-        echo -e "${red}Secure erase not supported for /dev/$drive"
-        wipe_passed=false
-        break
+        echo -e "${red}Secure erase not supported for /dev/$drive${clear}"
+        secure_erase_passed=false
       fi
     else
-      echo -e "${red}Secure erase is not supported for /dev/$drive"
-      wipe_passed=false
-      break
+      echo -e "${red}Secure erase is not supported for /dev/$drive${clear}"
+      secure_erase_passed=false
     fi
-    #check if drive is zeroed by scanning 10% of the drive for non-zeros
-    echo "Verifying drive /dev/$drive is fully wiped..."
-    total_bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
-    ten_percent_mbs=$(($total_bytes / 10000000))
-    if dd if=/dev/$drive bs=1M count=$ten_percent_mbs status=none | pv -s $(echo $ten_percent_mbs)M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
-      echo -e "${red}Wipe Verification Failed!${clear}"
-      wipe_passed=false
-      break
-    else
-      echo -e "${green}Wipe Verification Passed!${clear}"
+    #If Secure erase fails, zero erase drive
+    if [ $secure_erase_passed = false ]; then
+      echo "Perfoming zero wipe on drive /dev/$drive"
+      bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
+      mbs=$(($bytes / 1000000))
+      dd if=/dev/zero | pv -s $(echo $mbs)M | dd of=/dev/$drive bs=1M
     fi
+    verify_drive $drive
   done
 fi
 #Set wipe Method
