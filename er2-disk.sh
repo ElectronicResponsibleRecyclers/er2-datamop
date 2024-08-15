@@ -118,13 +118,13 @@ sleep 10
 check_internet
 
 #Optionally enter job number
-read -p "(Optional) Enter Job Number: " jobNumber
+read -p "Enter Job Number: " jobNumber
 
 #Input ER2 Asset Tag
 read -p "Enter ER2 Asset Tag: " er2AssetTag
 
 #Input Asset Tag
-read -p "Enter Asset Tag: " assetTag
+read -p "(Optional) Enter Asset Tag: " assetTag
 
 #Get lshw json report of device information
 lshw_info=$(lshw -json -quiet)
@@ -195,7 +195,7 @@ else
     fi
     #If Secure erase fails, zero erase drive
     if [ $secure_erase_passed = false ]; then
-      echo "Perfoming zero wipe on drive /dev/$drive"
+      echo "Perfoming zero wipe on drive /dev/$drive due to secure erase failure. This will take significantly more time..."
       bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
       mbs=$(($bytes / 1000000))
       dd if=/dev/zero | pv -s $(echo $mbs)M | dd of=/dev/$drive bs=1M
