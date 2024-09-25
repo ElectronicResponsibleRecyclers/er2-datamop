@@ -120,6 +120,8 @@ rtcwake -m mem -s 3 >> /dev/null
 sleep 10
 check_internet
 
+apt install qrencode
+
 #Optionally enter job number
 read -p "Enter Job Number: " jobNumber
 
@@ -224,6 +226,9 @@ if [ $intune_locked = true ]; then
 fi
 
 if [ $wipe_passed = true ]; then
+  echo "Link to Asset Details:"
+  qrencode -m 1 -t ANSI "https://portal.er2.com/asset/details/$(echo $request | jq -r ".asset_id")"
+  echo "Processing Channel: $(echo $request | jq -r ".processing_channel")"
   echo -e "${green}Successfully wiped device! Press [Enter] key to shutdown...${clear}"
   read -p "" none
 else
