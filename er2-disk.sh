@@ -2,6 +2,9 @@
 
 clear
 
+systemctl disable systemd-networkd-wait-online.service
+systemctl mask systemd-networkd-wait-online.service
+
 #Check if root
 if [ "$EUID" -ne 0 ]; then
   echo "Please run this script as root (sudo)."
@@ -164,7 +167,7 @@ else
         security_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for SECURITY")
         enhanced_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for ENHANCED")
         if [[ $(echo $enhanced_time | grep -o -P "\d+") -le $(echo $security_time | grep -o -P "\d+") ]]; then
-          echo "Enhanced Secure erase is supported for /dev/$drive."
+          echo "Enhanced Secure erase is supported for /dev/$drive. Estimated time to wipe: $enhanced_time"
           echo "Performing enhanced secure erase on /dev/$drive..."
           hdparm --security-set-pass p /dev/$drive >> /dev/null
           hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
@@ -175,7 +178,7 @@ else
             echo "Enhanced Secure erase complete for /dev/$drive."
           fi
         else
-          echo "Secure erase is supported for /dev/$drive."
+          echo "Secure erase is supported for /dev/$drive. Estimated time to wipe: $security_time"
           echo "Performing secure erase on /dev/$drive..."
           hdparm --security-set-pass p /dev/$drive >> /dev/null
           hdparm --security-erase p /dev/$drive >> /dev/null
