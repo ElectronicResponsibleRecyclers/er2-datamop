@@ -2,9 +2,6 @@
 
 clear
 
-systemctl disable systemd-networkd-wait-online.service
-systemctl mask systemd-networkd-wait-online.service
-
 #Check if root
 if [ "$EUID" -ne 0 ]; then
   echo "Please run this script as root (sudo)."
@@ -119,8 +116,6 @@ echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
 rtcwake -m mem -s 3 >> /dev/null
 sleep 10
 check_internet
-
-apt install qrencode
 
 #Optionally enter job number
 read -p "Enter Job Number: " jobNumber
