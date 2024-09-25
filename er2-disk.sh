@@ -8,22 +8,31 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-if dmidecode -s system-manufacturer | grep -qi "dell"; then
-  mode=$(cctk --EmbSataRaid)
-  if [[ "$mode" == "EmbSataRaid=Raid" ]]; then
-      cctk --EmbSataRaid=Ahci >> /dev/null
-      echo "Reboot required for script to continue! Restarting in 3 seconds..."
-      sleep 3
-      systemctl reboot
-      exit
-  fi
-fi
-
 #Set color variables for echo output
 red='\033[0;31m'
 green='\033[0;32m'
 yellow='\033[0;33m'
 clear='\033[0m'
+
+if dmidecode -s system-manufacturer | grep -qi "dell"; then
+  mode=$(cctk --EmbSataRaid)
+  locked=$(cctk --PasswordLock)
+  if [[ "$mode" == "EmbSataRaid=Raid" ]]; then
+    if [[ "$locked" == "PasswordLock=Enabled"]]; then
+      echo -e "${yellow} BIOS Locked. Unable to update bios settings. The script may not be able to detect NVME drives in the device. Please shutdown the device and ensure there are no NVME drives installed before continuing.${clear}"
+      read -p "Would you like to shutdown the device? (y/N)"
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+          systemctl poweroff
+        fi
+    else
+      cctk --EmbSataRaid=Ahci >> /dev/null
+      echo "Reboot required for script to continue! Restarting in 3 seconds..."
+      sleep 3
+      systemctl reboot
+      exit
+    fi
+  fi
+fi
 
 #Define internet check function
 check_internet () {
