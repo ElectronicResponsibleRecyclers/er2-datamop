@@ -8,6 +8,9 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+#wipe and upload to portal by default
+wipe_only=false
+
 #Set color variables for echo output
 red='\033[0;31m'
 green='\033[0;32m'
@@ -119,7 +122,6 @@ echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
 
 rtcwake -m mem -s 3 >> /dev/null
 sleep 10
-check_internet
 
 #Optionally enter job number
 read -p "Enter Job Number: " jobNumber
@@ -127,14 +129,22 @@ read -p "Enter Job Number: " jobNumber
 #Input ER2 Asset Tag
 read -p "Enter ER2 Asset Tag: " er2AssetTag
 
-#Input Asset Tag
-read -p "(Optional) Enter Asset Tag: " assetTag
+#If user entered nothing for er2 Asset Tag and Job Number then only wipe the drives and don't upload to portal
+if [[ -z $er2AssetTag ]] && [[ -z $jobNumber ]]; then
+  wipe_only=true
+  echo "No job number or ER2 Asset Tag entered! Only wiping drives."
+  sleep 3
+else
+  check_internet
+  #Input Asset Tag
+  read -p "(Optional) Enter Asset Tag: " assetTag
 
-#Get lshw json report of device information
-lshw_info=$(lshw -json -quiet)
+  #Get lshw json report of device information
+  lshw_info=$(lshw -json -quiet)
 
-#Get battery info via upower dump
-upower_info=$(upower --dump | jc --upower)
+  #Get battery info via upower dump
+  upower_info=$(upower --dump | jc --upower)
+fi
 
 # Get a list of connected drives
 drives=$(lsblk -d -o NAME,TYPE,TRAN | grep 'disk.*sata\|nvme' | awk '{print $1}')
@@ -199,7 +209,7 @@ else
     fi
     #If Secure erase fails, zero erase drive
     if [ $secure_erase_passed = false ]; then
-      echo "Perfoming zero wipe on drive /dev/$drive due to secure erase failure. This will take significantly more time..."
+      echo "Performing zero wipe on drive /dev/$drive due to secure erase failure. This will take significantly more time..."
       bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
       mbs=$(($bytes / 1000000))
       dd if=/dev/zero | pv -s $(echo $mbs)M | dd of=/dev/$drive bs=1M
@@ -215,9 +225,9 @@ else
 fi
 
 intune_locked=false
-portal_upload
-
-echo $request
+if [ $wipe_only = false ]; then
+    portal_upload
+fi
 
 if [ $intune_locked = true ]; then
   echo -e "${yellow}Device is Intune locked!!! Please place Intune sticker on device!!!${clear}"
@@ -225,9 +235,11 @@ if [ $intune_locked = true ]; then
 fi
 
 if [ $wipe_passed = true ]; then
-  echo "Link to Asset Details:"
-  qrencode -m 1 -t ANSI "https://portal.er2.com/asset/details/$(echo $request | jq -r ".asset_id")"
-  echo "Processing Channel: $(echo $request | jq -r ".processing_channel")"
+  if [ $wipe_only = false ]; then
+      echo "Link to Asset Details:"
+      qrencode -m 1 -t ANSI "https://portal.er2.com/asset/details/$(echo $request | jq -r ".asset_id")"
+      echo "Processing Channel: $(echo $request | jq -r ".processing_channel")"
+  fi
   echo -e "${green}Successfully wiped device! Press [Enter] key to shutdown...${clear}"
   read -p "" none
 else
