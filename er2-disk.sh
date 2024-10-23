@@ -148,7 +148,6 @@ if [[ -z $er2AssetTag ]] && [[ -z $jobNumber ]]; then
   echo "No job number or ER2 Asset Tag entered! Only wiping drives."
   sleep 3
 else
-  check_internet
   #Input Asset Tag
   read -p "(Optional) Enter Asset Tag: " assetTag
 
