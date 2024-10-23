@@ -175,6 +175,7 @@ else
   # Loop through each drive and check if it supports ATA secure erase
   for drive in $drives; do
     secure_erase_passed=true
+    zero_erase_passed=true
     echo "attempting to wipe /dev/$drive..."
     # Check if drive is nvme
     if [[ "$drive" == "nvme"* ]]; then
