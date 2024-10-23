@@ -74,10 +74,10 @@ verify_drive() {
   if dd if=/dev/$1 bs=1M count=$ten_percent_mbs status=none | pv -s $(echo $ten_percent_mbs)M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
     echo -e "${red}Wipe Verification Failed!${clear}"
     wipe_passed=false
-    break
+    return 1
   else
     echo -e "${green}Wipe Verification Passed!${clear}"
-
+    return 0
   fi
 }
 #Define portal upload function
@@ -225,8 +225,20 @@ else
       bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
       mbs=$(($bytes / 1000000))
       dd if=/dev/zero | pv -s $(echo $mbs)M | dd of=/dev/$drive bs=1M
+      if [[ $? != 0 ]]; then
+        zero_erase_passed=false
+      fi
     fi
-    verify_drive $drive
+    if [ $zero_erase_passed = false ]; then
+      wipe_passed=false
+      break_loop=1
+    else
+      verify_drive $drive
+      break_loop=$?
+    fi
+    if [ $break_loop -eq 1 ]; then
+        break
+    fi
   done
 fi
 #Set wipe Method
