@@ -165,15 +165,10 @@ fi
 drives=$(lsblk -d -o NAME,TYPE,TRAN | grep 'disk.*sata\|nvme' | awk '{print $1}')
 
 wipe_passed=true
+no_drives=false
 if [[ -z "$drives" ]]; then
-  echo -e "${yellow}Warning! This script is unable to detect any drives inside this asset. Please check whether or not the asset contains any drives."
-  echo "If the asset does contain drives please shutdown the asset, ensure that all drives are connected properly and power on the asset."
-  echo -e "${red}If this is the second time this warning has popped up and there are drives in the asset, run the script until completion, remove all drives from the asset and mark them for destruction.${yellow}"
-  echo -e "If the asset does not contain drives then do not shut the asset down and continue running the script to upload the asset's information to the portal.${clear}"
-  read -p "Would you like to shutdown the device? (y/N)"
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    systemctl poweroff
-  fi
+  no_drives=true
+  wipe_passed=false
 else
   # Loop through each drive and check if it supports ATA secure erase
   for drive in $drives; do
@@ -278,11 +273,21 @@ if [ $wipe_passed = true ]; then
   fi
 else
   if [ $upload_failed -eq 0 ]; then
-    echo -e "${yellow}Asset uploaded to portal but drive failed to wipe! Please mark asset for manual destruction. press [Enter] key to shutdown...${clear}"
-    read -p "" none
+    if [ $no_drives = true ]; then
+      echo -e "${yellow}No drive detected in device! Please Check if device contains drive. Asset uploaded to portal! press [Enter] key to shutdown...${clear}"
+      read -p "" none
+    else
+      echo -e "${yellow}Drive Failed to wipe! Asset uploaded to portal! Please mark asset for manual destruction. press [Enter] key to shutdown...${clear}"
+      read -p "" none
+    fi
   else
-    echo -e "${red}Failed to wipe drive and upload to portal! Please mark asset for manual destruction and manual asset inventory. press [Enter] key to shutdown...${clear}"
-    read -p "" none
+    if [ $no_drives = true ]; then
+      echo -e "${red}Unable to detect drive and upload to portal! Please mark asset for manual destruction and manual asset inventory. press [Enter] key to shutdown...${clear}"
+      read -p "" none
+    else
+      echo -e "${red}Failed to wipe drive and upload to portal! Please mark asset for manual destruction and manual asset inventory. press [Enter] key to shutdown...${clear}"
+      read -p "" none
+    fi
   fi
 fi
 
