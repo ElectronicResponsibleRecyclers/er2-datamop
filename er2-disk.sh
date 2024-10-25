@@ -105,6 +105,7 @@ portal_upload () {
     if [[ $(echo $request | jq -r ".intune_registration") == "true" ]]; then
       intune_locked=true
     fi
+    return 0
   else
     if [[ $(echo $request | jq -r ".status") == "error" ]]; then
       error_code=$(echo $request | jq -r ".error_code")
@@ -126,6 +127,7 @@ portal_upload () {
       else
         echo -e "${red}Unknown error occurred. Error Code: ( $error_code ).${clear}"
         read -p "Press [Enter] key to continue..." none
+        return 1
       fi
     fi
   fi
@@ -252,10 +254,16 @@ fi
 intune_locked=false
 if [ $wipe_only = false ]; then
     portal_upload
+    upload_failed=$?
+    if [ $upload_failed -eq 0 ]; then
+        echo "Link to Asset Details:"
+        qrencode -m 1 -t ANSI "https://portal.er2.com/asset/details/$(echo $request | jq -r ".asset_id")"
+        echo "Processing Channel: $(echo $request | jq -r ".processing_channel")"
+    fi
 fi
 
 if [ $intune_locked = true ]; then
-  echo -e "${yellow}Device is Intune locked!!! Please place Intune sticker on device!!!${clear}"
+  echo -e "${yellow}Device is Intune locked! Please mark asset as intune locked${clear}"
   read -p "Press [Enter] key to continue..." none
 fi
 
@@ -265,11 +273,21 @@ if [ $wipe_passed = true ]; then
       qrencode -m 1 -t ANSI "https://portal.er2.com/asset/details/$(echo $request | jq -r ".asset_id")"
       echo "Processing Channel: $(echo $request | jq -r ".processing_channel")"
   fi
-  echo -e "${green}Successfully wiped device! Press [Enter] key to shutdown...${clear}"
-  read -p "" none
+  if [ $upload_failed -eq 0 ]; then
+    echo -e "${green}Successfully wiped device and uploaded to portal! Press [Enter] key to shutdown...${clear}"
+    read -p "" none
+  else
+    echo -e "${yellow}Device successfully wiped but unable to upload to portal. Please mark asset for manual inventory. Press [Enter] key to shutdown...${clear}"
+        read -p "" none
+  fi
 else
-  echo -e "${red}Device drive failed to wipe correctly!!! Please remove all drives from asset and mark for manual destruction. press [Enter] key to shutdown...${clear}"
-  read -p "" none
+  if [ $upload_failed -eq 0 ]; then
+    echo -e "${yellow}Asset uploaded to portal but drive failed to wipe! Please mark asset for manual destruction. press [Enter] key to shutdown...${clear}"
+    read -p "" none
+  else
+    echo -e "${red}Failed to wipe drive and upload to portal! Please mark asset for manual destruction and manual asset inventory. press [Enter] key to shutdown...${clear}"
+    read -p "" none
+  fi
 fi
 
 systemctl poweroff
