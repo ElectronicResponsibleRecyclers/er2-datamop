@@ -15,6 +15,7 @@ wipe_only=false
 red='\033[0;31m'
 green='\033[0;32m'
 yellow='\033[0;33m'
+blue='\033[0;34m'
 clear='\033[0m'
 
 if dmidecode -s system-manufacturer | grep -qi "dell"; then
@@ -76,7 +77,7 @@ verify_drive() {
     wipe_passed=false
     return 1
   else
-    echo -e "${green}Wipe Verification Passed!${clear}"
+    echo "Wipe Verification Passed!"
     return 0
   fi
 }
@@ -256,9 +257,9 @@ if [ $wipe_only = false ]; then
     portal_upload
     upload_failed=$?
     if [ $upload_failed -eq 0 ]; then
-        echo "Link to Asset Details:"
-        qrencode -m 1 -t ANSI "https://portal.er2.com/asset/details/$(echo $request | jq -r ".asset_id")"
+        echo -e "${blue}Asset Details:"
         echo "Processing Channel: $(echo $request | jq -r ".processing_channel")"
+        echo -e "${clear}"
     fi
 fi
 

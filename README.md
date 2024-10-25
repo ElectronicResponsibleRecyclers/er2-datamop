@@ -9,4 +9,3 @@ All can be installed using the apt package manager except for the Dell Command C
 - nvme-cli
 - pv
 - cctk ([Dell Command Configure tool](https://www.dell.com/support/kbdoc/en-us/000178000/dell-command-configure))
-- qrencode
