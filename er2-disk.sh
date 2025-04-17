@@ -71,8 +71,8 @@ verify_drive() {
   #check if drive is zeroed by scanning 10% of the drive for non-zeros
   echo "Verifying drive /dev/$1 is fully wiped..."
   total_bytes=$(lsblk -b --output SIZE -n -d /dev/$1)
-  ten_percent_mbs=$(($total_bytes / 10000000))
-  if dd if=/dev/$1 bs=1M count=$ten_percent_mbs status=none | pv -s $(echo $ten_percent_mbs)M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
+  ten_percent_mbs=$(echo "scale=3; $total_bytes / 10485760.00000011" | bc)
+  if dd if=/dev/$1 bs=1M count=$(echo $ten_percent_mbs | awk '{printf "%d\n", $1}') status=none | pv -s $(echo $ten_percent_mbs | awk '{printf "%d\n", $1}')M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
     echo -e "${red}Wipe Verification Failed!${clear}"
     wipe_passed=false
     return 1
@@ -192,7 +192,7 @@ else
           echo "Enhanced Secure erase is supported for /dev/$drive. Estimated time to wipe: $enhanced_time"
           echo "Performing enhanced secure erase on /dev/$drive..."
           hdparm --security-set-pass p /dev/$drive >> /dev/null
-          hdparm --security-erase-enhanced p /dev/$drive >> /dev/null
+          hdparm --security-erase p /dev/$drive >> /dev/null
           if [[ $? != 0 ]]; then
             echo -e "${red}Secure erase not supported for /dev/$drive${clear}"
             secure_erase_passed=false
@@ -222,8 +222,8 @@ else
     if [ $secure_erase_passed = false ]; then
       echo "Performing zero wipe on drive /dev/$drive due to secure erase failure. This will take significantly more time..."
       bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
-      mbs=$(($bytes / 1000000))
-      dd if=/dev/zero | pv -s $(echo $mbs)M | dd of=/dev/$drive bs=1M
+      mbs=$(echo "scale=3; $bytes / 1048576.000000011" | bc)
+      dd if=/dev/zero | pv -s $(echo $mbs | awk '{printf "%d\n", $1}')M | dd of=/dev/$drive bs=1M
       if [[ $? != 0 ]]; then
         zero_erase_passed=false
       fi
@@ -251,7 +251,7 @@ intune_locked=false
 if [ $wipe_only = false ]; then
     portal_upload
     upload_failed=$?
-    if [ $upload_failed -eq 0 ]; then
+    if [[ $upload_failed == 0 ]]; then
         echo -e "${blue}Asset Details:"
         echo "Processing Channel: $(echo $request | jq -r ".processing_channel")"
         echo -e "${clear}"
@@ -264,7 +264,7 @@ if [ $intune_locked = true ]; then
 fi
 
 if [ $wipe_passed = true ]; then
-  if [ $upload_failed -eq 0 ]; then
+  if [[ $upload_failed == 0 ]]; then
     echo -e "${green}Successfully wiped device and uploaded to portal! Press [Enter] key to shutdown...${clear}"
     read -p "" none
   else
@@ -272,7 +272,7 @@ if [ $wipe_passed = true ]; then
         read -p "" none
   fi
 else
-  if [ $upload_failed -eq 0 ]; then
+  if [[ $upload_failed == 0 ]]; then
     if [ $no_drives = true ]; then
       echo -e "${yellow}No drive detected in device! Please Check if device contains drive. Asset uploaded to portal! press [Enter] key to shutdown...${clear}"
       read -p "" none
