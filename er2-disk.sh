@@ -16,6 +16,7 @@ red='\033[0;31m'
 green='\033[0;32m'
 yellow='\033[0;33m'
 blue='\033[0;34m'
+magenta='\033[0;35m'
 clear='\033[0m'
 
 if dmidecode -s system-manufacturer | grep -qi "dell"; then
@@ -106,6 +107,7 @@ portal_upload () {
     if [[ $(echo $request | jq -r ".intune_registration") == "true" ]]; then
       intune_locked=true
     fi
+    validate=$(echo $request | jq -r ".validate")
     return 0
   else
     if [[ $(echo $request | jq -r ".status") == "error" ]]; then
@@ -263,13 +265,25 @@ if [ $intune_locked = true ]; then
   read -p "Press [Enter] key to continue..." none
 fi
 
+if [ $validate = true]; then
+  echo -e "${magenta}██╗   ██╗███████╗██████╗ ██╗███████╗██╗   ██╗    ██╗   ██╗███╗   ██╗██╗████████╗██╗";
+  echo -e "${magenta}██║   ██║██╔════╝██╔══██╗██║██╔════╝╚██╗ ██╔╝    ██║   ██║████╗  ██║██║╚══██╔══╝██║";
+  echo -e "${magenta}██║   ██║█████╗  ██████╔╝██║█████╗   ╚████╔╝     ██║   ██║██╔██╗ ██║██║   ██║   ██║";
+  echo -e "${magenta}╚██╗ ██╔╝██╔══╝  ██╔══██╗██║██╔══╝    ╚██╔╝      ██║   ██║██║╚██╗██║██║   ██║   ╚═╝";
+  echo -e "${magenta} ╚████╔╝ ███████╗██║  ██║██║██║        ██║       ╚██████╔╝██║ ╚████║██║   ██║   ██╗";
+  echo -e "${magenta}  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚═╝╚═╝        ╚═╝        ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝   ╚═╝";
+  echo -e "                                                                                   ";
+  echo -e "${magenta} Unit must be manually verified! Please mark for verification! Press [Enter] key to continue...${clear}"
+  read -p "" none
+fi
+
 if [ $wipe_passed = true ]; then
   if [[ $upload_failed == 0 ]]; then
     echo -e "${green}Successfully wiped device and uploaded to portal! Press [Enter] key to shutdown...${clear}"
     read -p "" none
   else
     echo -e "${yellow}Device successfully wiped but unable to upload to portal. Please mark asset for manual inventory. Press [Enter] key to shutdown...${clear}"
-        read -p "" none
+    read -p "" none
   fi
 else
   if [[ $upload_failed == 0 ]]; then
