@@ -227,7 +227,7 @@ else
       mbs=$(echo "scale=3; $bytes / 1048576.000000011" | bc)
       dd if=/dev/zero | pv -s $(echo $mbs | awk '{printf "%d\n", $1}')M | dd of=/dev/$drive bs=1M
       if [[ $? != 0 ]]; then
-        zero_erase_passed=false
+        zero_erase_passed=true
       fi
     fi
     if [ $zero_erase_passed = false ]; then
