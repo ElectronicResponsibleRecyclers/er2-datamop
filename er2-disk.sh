@@ -107,7 +107,9 @@ portal_upload () {
     if [[ $(echo $request | jq -r ".intune_registration") == "true" ]]; then
       intune_locked=true
     fi
-    validate=$(echo $request | jq -r ".validate")
+    if [[ $(echo $request | jq -r ".validate") == "true" ]]; then
+          validate=true
+    fi
     return 0
   else
     if [[ $(echo $request | jq -r ".status") == "error" ]]; then
@@ -250,6 +252,7 @@ else
 fi
 
 intune_locked=false
+validate=false
 if [ $wipe_only = false ]; then
     portal_upload
     upload_failed=$?
