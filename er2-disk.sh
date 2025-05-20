@@ -268,7 +268,7 @@ if [ $intune_locked = true ]; then
   read -p "Press [Enter] key to continue..." none
 fi
 
-if [ $validate = true]; then
+if [ $validate = true ]; then
   echo -e "${magenta}██╗   ██╗███████╗██████╗ ██╗███████╗██╗   ██╗    ██╗   ██╗███╗   ██╗██╗████████╗██╗";
   echo -e "${magenta}██║   ██║██╔════╝██╔══██╗██║██╔════╝╚██╗ ██╔╝    ██║   ██║████╗  ██║██║╚══██╔══╝██║";
   echo -e "${magenta}██║   ██║█████╗  ██████╔╝██║█████╗   ╚████╔╝     ██║   ██║██╔██╗ ██║██║   ██║   ██║";
