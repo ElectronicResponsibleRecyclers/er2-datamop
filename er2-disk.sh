@@ -176,68 +176,76 @@ if [[ -z "$drives" ]]; then
 else
   # Loop through each drive and check if it supports ATA secure erase
   for drive in $drives; do
-    secure_erase_passed=true
-    zero_erase_passed=true
-    echo "attempting to wipe /dev/$drive..."
-    # Check if drive is nvme
-    if [[ "$drive" == "nvme"* ]]; then
-      echo "Performing NVMe Secure erase on /dev/$drive..."
-      nvme format /dev/$drive --ses=1 --force
-      if [[ $? != 0 ]]; then
+    if [[ "$(cat /sys/block/$drive/queue/rotational)" -eq 1 ]]; then
+      wipe_passed=false
+      break_loop=1
+      echo -e "${yellow}Mechanical disk detected! Remove Drive(s) after upload!${clear}"
+      read -p "Press [Enter] key to continue..." none
+      echo "Skipping wipe..."
+    else
+      secure_erase_passed=true
+      zero_erase_passed=true
+      echo "attempting to wipe /dev/$drive..."
+      # Check if drive is nvme
+      if [[ "$drive" == "nvme"* ]]; then
+        echo "Performing NVMe Secure erase on /dev/$drive..."
+        nvme format /dev/$drive --ses=1 --force
+        if [[ $? != 0 ]]; then
+          echo -e "${red}Secure erase is not supported for /dev/$drive${clear}"
+          secure_erase_passed=false
+        fi
+      # If ATA drive then wipe with ATA secure erase
+      elif [[ "$drive" == "sd"* ]]; then
+        if hdparm -I /dev/$drive | grep -q "min for SECURITY"; then
+          security_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for SECURITY")
+          enhanced_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for ENHANCED")
+          if [[ $(echo $enhanced_time | grep -o -P "\d+") -le $(echo $security_time | grep -o -P "\d+") ]]; then
+            echo "Enhanced Secure erase is supported for /dev/$drive. Estimated time to wipe: $enhanced_time"
+            echo "Performing enhanced secure erase on /dev/$drive..."
+            hdparm --security-set-pass p /dev/$drive >> /dev/null
+            hdparm --security-erase p /dev/$drive >> /dev/null
+            if [[ $? != 0 ]]; then
+              echo -e "${red}Secure erase not supported for /dev/$drive${clear}"
+              secure_erase_passed=false
+            else
+              echo "Enhanced Secure erase complete for /dev/$drive."
+            fi
+          else
+            echo "Secure erase is supported for /dev/$drive. Estimated time to wipe: $security_time"
+            echo "Performing secure erase on /dev/$drive..."
+            hdparm --security-set-pass p /dev/$drive >> /dev/null
+            hdparm --security-erase p /dev/$drive >> /dev/null
+            if [[ $? != 0 ]]; then
+              secure_erase_passed=false
+            else
+              echo "Secure erase complete for /dev/$drive."
+            fi
+          fi
+        else
+          echo -e "${red}Secure erase not supported for /dev/$drive${clear}"
+          secure_erase_passed=false
+        fi
+      else
         echo -e "${red}Secure erase is not supported for /dev/$drive${clear}"
         secure_erase_passed=false
       fi
-    # If ATA drive then wipe with ATA secure erase
-    elif [[ "$drive" == "sd"* ]]; then
-      if hdparm -I /dev/$drive | grep -q "min for SECURITY"; then
-        security_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for SECURITY")
-        enhanced_time=$(hdparm -I /dev/$drive | grep -o -P "\d+min for ENHANCED")
-        if [[ $(echo $enhanced_time | grep -o -P "\d+") -le $(echo $security_time | grep -o -P "\d+") ]]; then
-          echo "Enhanced Secure erase is supported for /dev/$drive. Estimated time to wipe: $enhanced_time"
-          echo "Performing enhanced secure erase on /dev/$drive..."
-          hdparm --security-set-pass p /dev/$drive >> /dev/null
-          hdparm --security-erase p /dev/$drive >> /dev/null
-          if [[ $? != 0 ]]; then
-            echo -e "${red}Secure erase not supported for /dev/$drive${clear}"
-            secure_erase_passed=false
-          else
-            echo "Enhanced Secure erase complete for /dev/$drive."
-          fi
-        else
-          echo "Secure erase is supported for /dev/$drive. Estimated time to wipe: $security_time"
-          echo "Performing secure erase on /dev/$drive..."
-          hdparm --security-set-pass p /dev/$drive >> /dev/null
-          hdparm --security-erase p /dev/$drive >> /dev/null
-          if [[ $? != 0 ]]; then
-            secure_erase_passed=false
-          else
-            echo "Secure erase complete for /dev/$drive."
-          fi
+      #If Secure erase fails, zero erase drive
+      if [ $secure_erase_passed = false ]; then
+        echo "Performing zero wipe on drive /dev/$drive due to secure erase failure. This will take significantly more time..."
+        bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
+        mbs=$(echo "scale=3; $bytes / 1048576.000000011" | bc)
+        dd if=/dev/zero | pv -s $(echo $mbs | awk '{printf "%d\n", $1}')M | dd of=/dev/$drive bs=1M
+        if [[ $? != 0 ]]; then
+          zero_erase_passed=true
         fi
+      fi
+      if [ $zero_erase_passed = false ]; then
+        wipe_passed=false
+        break_loop=1
       else
-        echo -e "${red}Secure erase not supported for /dev/$drive${clear}"
-        secure_erase_passed=false
+        verify_drive $drive
+        break_loop=$?
       fi
-    else
-      echo -e "${red}Secure erase is not supported for /dev/$drive${clear}"
-      secure_erase_passed=false
-    fi
-    #If Secure erase fails, zero erase drive
-    if [ $secure_erase_passed = false ]; then
-      echo "Performing zero wipe on drive /dev/$drive due to secure erase failure. This will take significantly more time..."
-      bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
-      mbs=$(echo "scale=3; $bytes / 1048576.000000011" | bc)
-      dd if=/dev/zero | pv -s $(echo $mbs | awk '{printf "%d\n", $1}')M | dd of=/dev/$drive bs=1M
-      if [[ $? != 0 ]]; then
-        zero_erase_passed=true
-      fi
-    fi
-    if [ $zero_erase_passed = false ]; then
-      wipe_passed=false
-      break_loop=1
-    else
-      verify_drive $drive
-      break_loop=$?
     fi
     if [ $break_loop -eq 1 ]; then
         break
