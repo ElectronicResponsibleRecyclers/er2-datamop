@@ -130,18 +130,25 @@ if [ ${#failedDrives[@]} -gt 0 ]; then
   printf "\n\nThe following serial numbers failed to wipe:\n"
   for failed in "${failedDrives[@]}"; do
     echo "${serials[$failed]}"      # :- gives a default if key not found
+    failedSerials+=("${serials[$failed]}")
   done
 
   echo "Now we will attempt to locate the drive"
 
   while [ $failedDriveCount -gt 0 ]; do
     read -rp "We are looking for $failedDriveCount drives, please scan a serial number: " scannedSerial || { echo; exit 130; }
-    if ! grep -q "$scannedSerial" <<<"${serials[@]}"; then
+    if ! grep -q "$scannedSerial" <<<"${failedSerials[@]}"; then
       echo "Serial number $scannedSerial not found in the list of failed drives."
       continue
     else
       echo "Serial number $scannedSerial has failed. Please destroy the drive"
       failedDriveCount=$(($failedDriveCount - 1))
+      #remove scanned failed serial from array 
+      for index in "${!failedSerials[@]}"; do
+        if [ "${failedSerials[$index]}" = "$scannedSerial" ]; then
+          unset failedSerials[$index]
+        fi
+      done
     fi
   done
 fi
