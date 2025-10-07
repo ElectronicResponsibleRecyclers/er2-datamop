@@ -47,8 +47,7 @@ for nvme in "${nvmes[@]}"; do
     exit_code=$(( $RANDOM % 1 ))
     echo "Wiping NVMe device: $nvme"
     if [ $DEBUG -eq 0 ]; then
-      nvme format "$nvme" --ses=1 --force
-      exit_code=$?
+      nvme format "$nvme" --ses=1 --force &
     else
       echo "Debug mode is on, skipping actual wipe command."
       sleep 1 && exit $exit_code &
