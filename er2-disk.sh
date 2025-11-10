@@ -137,6 +137,30 @@ portal_upload () {
     fi
   fi
 }
+alphanumeric_check () {
+  checkPassed=true
+  if [[ "$jobNumber" =~ [^a-zA-Z0-9] ]]; then
+    echo -e "${yellow}"
+    read -p "Entered Job Number ($jobNumber) contains invalid character. Please re-enter Job Number:" jobNumbegit r
+    echo -e "${clear}"
+    checkPassed=false
+  fi
+  if [[ "$er2AssetTag" =~ [^a-zA-Z0-9] ]]; then
+      echo -e "${yellow}"
+      read -p "Entered ER2 Asset Tag ($er2AssetTag) contains invalid character. Please re-enter ER2 Asset Tag:" er2AssetTag
+      echo -e "${clear}"
+      checkPassed=false
+  fi
+  if [[ "$assetTag" =~ [^a-zA-Z0-9] ]]; then
+      echo -e "${yellow}"
+      read -p "Entered Asset Tag ($assetTag) contains invalid character. Please re-enter Asset Tag:" assetTag
+      echo -e "${clear}"
+      checkPassed=false
+  fi
+  if [ $checkPassed = false ]; then
+    alphanumeric_check
+  fi
+}
 
 echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
 
@@ -164,6 +188,8 @@ else
   #Get battery info via upower dump
   upower_info=$(upower --dump | jc --upower)
 fi
+
+alphanumeric_check
 
 # Get a list of connected drives
 drives=$(lsblk -d -o NAME,TYPE,TRAN | grep 'disk.*sata\|nvme' | awk '{print $1}')
