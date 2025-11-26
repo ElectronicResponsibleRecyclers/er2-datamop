@@ -165,11 +165,12 @@ alphanumeric_check () {
 }
 
 if lsblk -d -o TRAN | grep -qi sata; then
-  update_bios
   echo deep | sudo tee /sys/power/mem_sleep >> /dev/null
   rtcwake -m mem -s 3 >> /dev/null
   sleep 10
 fi
+
+update_bios
 
 clear
 #Optionally enter job number
