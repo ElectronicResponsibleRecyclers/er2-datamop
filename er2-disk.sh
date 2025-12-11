@@ -153,7 +153,7 @@ alphanumeric_check () {
       echo -e "${clear}"
       checkPassed=false
   fi
-  if [[ "$assetTag" =~ [^a-zA-Z0-9] ]]; then
+  if [[ "$assetTag" =~ [^a-zA-Z0-9_#-] ]]; then
       echo -e "${yellow}"
       read -p "Entered Asset Tag ($assetTag) contains invalid character. Please re-enter Asset Tag:" assetTag
       echo -e "${clear}"
