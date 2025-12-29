@@ -224,7 +224,15 @@ else
         nvme format /dev/$drive --ses=1 --force
         if [[ $? != 0 ]]; then
           echo -e "${red}Secure erase is not supported for /dev/$drive${clear}"
-          secure_erase_passed=false
+          #if Lenovo Asset ask if drive was wiped through ThinkStation Secure Wipe
+          if dmidecode -s system-manufacturer | grep -qi "lenovo"; then
+            read -p "Did you wipe the drive from the Lenovo Bios? (y/N)" choice
+            if [[ "$choice" == [Yy]* ]]; then
+              echo "Skipping to Wipe Verification..."
+            else
+                secure_erase_passed=false
+            fi
+          fi
         fi
       # If ATA drive then wipe with ATA secure erase
       elif [[ "$drive" == "sd"* ]]; then
