@@ -226,7 +226,9 @@ else
           echo -e "${red}Secure erase is not supported for /dev/$drive${clear}"
           #if Lenovo Asset ask if drive was wiped through ThinkStation Secure Wipe
           if dmidecode -s system-manufacturer | grep -qi "lenovo"; then
-            read -p "Did you wipe the drive from the Lenovo Bios? (y/N)" choice
+            echo -e "${blue}"
+            read -p "Did you wipe the drive from the Lenovo Bios? (y/N): " choice
+            echo -e "${clear}"
             if [[ "$choice" == [Yy]* ]]; then
               echo "Skipping to Wipe Verification..."
             else
