@@ -41,6 +41,7 @@ update_bios() {
       fi
     fi
     if [ $bios_reboot = true ]; then
+      cctk BootOrder --BootListType=uefi --Sequence=usbhdd >> /dev/null
       echo "Reboot required for script to continue! Restarting in 3 seconds..."
       sleep 3
       systemctl reboot
@@ -143,7 +144,7 @@ alphanumeric_check () {
   checkPassed=true
   if [[ "$jobNumber" =~ [^a-zA-Z0-9] ]]; then
     echo -e "${yellow}"
-    read -p "Entered Job Number ($jobNumber) contains invalid character. Please re-enter Job Number:" jobNumbegit r
+    read -p "Entered Job Number ($jobNumber) contains invalid character. Please re-enter Job Number:" jobNumber
     echo -e "${clear}"
     checkPassed=false
   fi
