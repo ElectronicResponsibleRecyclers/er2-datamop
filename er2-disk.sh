@@ -72,11 +72,41 @@ check_internet () {
   fi
 }
 verify_drive() {
-  #check if drive is zeroed by scanning 10% of the drive for non-zeros
+  #Check if drive is zeroed by reading 10% of the drive
   echo "Verifying drive /dev/$1 is fully wiped..."
-  total_bytes=$(lsblk -b --output SIZE -n -d /dev/$1)
-  ten_percent_mbs=$(echo "scale=3; $total_bytes / 10485760.00000011" | bc)
-  if dd if=/dev/$1 bs=1M count=$(echo $ten_percent_mbs | awk '{printf "%d\n", $1}') status=none | pv -s $(echo $ten_percent_mbs | awk '{printf "%d\n", $1}')M | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
+
+  local drive="$1"
+  local total_bytes
+  total_bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
+
+  local block_size=1048576  # 1M blocks
+  local full_blocks=$((total_bytes / block_size))
+
+  #10% of total blocks
+  local sample_count=$((full_blocks / 10))
+  if [[ $sample_count -lt 1 ]]; then
+    sample_count=1
+  fi
+
+  #Randomize block offsets to check different parts of the drive
+  local offsets=()
+  local seen=()
+  while [[ ${#offsets[@]} -lt $sample_count ]]; do
+    local candidate=$(( RANDOM % full_blocks ))
+    if [[ -z "${seen[$candidate]}" ]]; then
+      seen[$candidate]=1
+      offsets+=("$candidate")
+    fi
+  done
+
+  #Total bytes being read
+  local sample_bytes=$((sample_count * block_size))
+
+  #Read through all blocks and scan for non-zeros
+  if { for offset in "${offsets[@]}"; do
+         dd if=/dev/$drive bs=$block_size skip=$offset count=1 status=none
+       done
+     } | pv -s "$sample_bytes" | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
     echo -e "${red}Wipe Verification Failed!${clear}"
     wipe_passed=false
     return 1
@@ -235,6 +265,8 @@ else
             else
                 secure_erase_passed=false
             fi
+          else
+            secure_erase_passed=false
           fi
         fi
       # If ATA drive then wipe with ATA secure erase
@@ -276,10 +308,31 @@ else
       if [ $secure_erase_passed = false ]; then
         echo "Performing zero wipe on drive /dev/$drive due to secure erase failure. This will take significantly more time..."
         bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
-        mbs=$(echo "scale=3; $bytes / 1048576.000000011" | bc)
-        dd if=/dev/zero | pv -s $(echo $mbs | awk '{printf "%d\n", $1}')M | dd of=/dev/$drive bs=1M
-        if [[ $? != 0 ]]; then
-          zero_erase_passed=true
+        full_blocks=$((bytes / 1048576))
+        remainder=$((bytes % 1048576))
+
+        #Main zero wipe
+        dd if=/dev/zero bs=1M count=$full_blocks iflag=fullblock 2>/dev/null | \
+          pv -s "$bytes" | \
+          dd of=/dev/$drive bs=1M count=$full_blocks iflag=fullblock conv=fsync
+
+        #Check exit codes
+        pipe_status=("${PIPESTATUS[@]}")
+        zero_erase_passed=true
+
+        for status in "${pipe_status[@]}"; do
+            if [[ $status != 0 ]]; then
+                zero_erase_passed=false
+                break
+            fi
+        done
+
+        #Wipe remainder if there is any
+        if [ "$remainder" -gt 0 ] && [ "$zero_erase_passed" = true ]; then
+            dd if=/dev/zero of=/dev/$drive bs=1 count=$remainder seek=$((full_blocks * 1048576)) conv=fsync 2>/dev/null
+            if [[ $? != 0 ]]; then
+                zero_erase_passed=false
+            fi
         fi
       fi
       if [ $zero_erase_passed = false ]; then
