@@ -72,39 +72,49 @@ check_internet () {
   fi
 }
 verify_drive() {
-  #Check if drive is zeroed by reading 10% of the drive
   echo "Verifying drive /dev/$1 is fully wiped..."
 
   local drive="$1"
   local total_bytes
   total_bytes=$(lsblk -b --output SIZE -n -d /dev/$drive)
 
-  local block_size=1048576  # 1M blocks
+  local block_size=1048576 #1M blocks
   local full_blocks=$((total_bytes / block_size))
 
-  #10% of total blocks
-  local sample_count=$((full_blocks / 10))
-  if [[ $sample_count -lt 1 ]]; then
-    sample_count=1
+  # Sample 10% of blocks
+  local sample_total_blocks=$((full_blocks / 10))
+  if [[ $sample_total_blocks -lt 1 ]]; then
+    sample_total_blocks=1
   fi
 
-  #Randomize block offsets to check different parts of the drive
+  # Separate drive into a maximum of 100 regions and calculate region size based on total drive size
+  local num_regions=100
+  if [[ $num_regions -gt $sample_total_blocks ]]; then
+    num_regions=$sample_total_blocks
+  fi
+
+  local region_size=$((sample_total_blocks / num_regions))
+  if [[ $region_size -lt 1 ]]; then
+    region_size=1
+  fi
+
+  # calculate region offsets
+  local slot_size=$((full_blocks / num_regions))
   local offsets=()
-  local seen=()
-  while [[ ${#offsets[@]} -lt $sample_count ]]; do
-    local candidate=$(( RANDOM % full_blocks ))
-    if [[ -z "${seen[$candidate]}" ]]; then
-      seen[$candidate]=1
-      offsets+=("$candidate")
+  for ((i = 0; i < num_regions; i++)); do
+    local slot_start=$((i * slot_size))
+    local max_start=$((slot_size - region_size))
+    if [[ $max_start -lt 0 ]]; then
+      max_start=0
     fi
+    local rand_within_slot=$(( RANDOM % (max_start + 1) ))
+    offsets+=($((slot_start + rand_within_slot)))
   done
 
-  #Total bytes being read
-  local sample_bytes=$((sample_count * block_size))
+  local sample_bytes=$((num_regions * region_size * block_size))
 
-  #Read through all blocks and scan for non-zeros
   if { for offset in "${offsets[@]}"; do
-         dd if=/dev/$drive bs=$block_size skip=$offset count=1 status=none
+         dd if=/dev/$drive bs=$block_size skip=$offset count=$region_size status=none
        done
      } | pv -s "$sample_bytes" | hexdump | head -n -2 | grep -q -m 1 -P '[^0 ]'; then
     echo -e "${red}Wipe Verification Failed!${clear}"
