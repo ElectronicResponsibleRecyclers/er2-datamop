@@ -21,31 +21,33 @@ clear='\033[0m'
 
 update_bios() {
   if dmidecode -s system-manufacturer | grep -qi "dell"; then
-    mode=$(cctk --EmbSataRaid)
-    sleep_block=$(cctk --BlockSleep)
-    bios_reboot=false
-    if [[ "$mode" == "EmbSataRaid=Raid" ]]; then
-        sata_option=$(cctk --EmbSataRaid=Ahci | grep -oh "Setup Password")
-        if [[ "$sata_option" == "Setup Password" ]]; then
+    if [[ "$(uname -m)" == "x86_64" || "$(uname -m)" == i?86 ]]; then
+      mode=$(cctk --EmbSataRaid)
+      sleep_block=$(cctk --BlockSleep)
+      bios_reboot=false
+      if [[ "$mode" == "EmbSataRaid=Raid" ]]; then
+          sata_option=$(cctk --EmbSataRaid=Ahci | grep -oh "Setup Password")
+          if [[ "$sata_option" == "Setup Password" ]]; then
+            echo -e "${yellow}WARNING: BIOS Locked. Unable to update bios settings. The script may not be able to detect NVME drives in the device. Please shutdown the device and ensure there are no NVME drives installed before continuing.${clear}"
+          else
+            bios_reboot=true
+          fi
+      fi
+      if [[ "$sleep_block" == "BlockSleep=Enabled" ]]; then
+        sleep_option=$(cctk --BlockSleep=Disabled | grep -oh "Setup Password")
+        if [[ "$sleep_option" == "Setup Password" ]]; then
           echo -e "${yellow}WARNING: BIOS Locked. Unable to update bios settings. The script may not be able to detect NVME drives in the device. Please shutdown the device and ensure there are no NVME drives installed before continuing.${clear}"
         else
           bios_reboot=true
         fi
-    fi
-    if [[ "$sleep_block" == "BlockSleep=Enabled" ]]; then
-      sleep_option=$(cctk --BlockSleep=Disabled | grep -oh "Setup Password")
-      if [[ "$sleep_option" == "Setup Password" ]]; then
-        echo -e "${yellow}WARNING: BIOS Locked. Unable to update bios settings. The script may not be able to detect NVME drives in the device. Please shutdown the device and ensure there are no NVME drives installed before continuing.${clear}"
-      else
-        bios_reboot=true
       fi
-    fi
-    if [ $bios_reboot = true ]; then
-      cctk BootOrder --BootListType=uefi --Sequence=usbhdd >> /dev/null
-      echo "Reboot required for script to continue! Restarting in 3 seconds..."
-      sleep 3
-      systemctl reboot
-      exit
+      if [ $bios_reboot = true ]; then
+        cctk BootOrder --BootListType=uefi --Sequence=usbhdd >> /dev/null
+        echo "Reboot required for script to continue! Restarting in 3 seconds..."
+        sleep 3
+        systemctl reboot
+        exit
+      fi
     fi
   fi
 }
